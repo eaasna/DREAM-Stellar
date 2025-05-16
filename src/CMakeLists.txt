@@ -22,11 +22,8 @@ add_library ("${PROJECT_NAME}_threshold_lib" STATIC threshold/find.cpp)
 target_link_libraries ("${PROJECT_NAME}_threshold_lib" PUBLIC "${PROJECT_NAME}_interface")
 
 # Valik split
-add_library ("${PROJECT_NAME}_split_lib" STATIC valik_split.cpp)
+add_library ("${PROJECT_NAME}_split_lib" STATIC split/write_seg_sequences.cpp)
 target_link_libraries ("${PROJECT_NAME}_split_lib" PUBLIC "${PROJECT_NAME}_interface")
-
-add_library ("${PROJECT_NAME}_split_write_lib" STATIC split/write_seg_sequences.cpp)
-target_link_libraries ("${PROJECT_NAME}_split_write_lib" PUBLIC "${PROJECT_NAME}_interface")
 
 # Valik build
 add_library ("${PROJECT_NAME}_build_lib" STATIC valik_build.cpp)
@@ -74,7 +71,6 @@ target_link_libraries ("${PROJECT_NAME}_lib" INTERFACE "${PROJECT_NAME}_argument
 target_link_libraries ("${PROJECT_NAME}_lib" INTERFACE "${PROJECT_NAME}_argument_parsing_shared_lib")
 target_link_libraries ("${PROJECT_NAME}_lib" INTERFACE "${PROJECT_NAME}_argument_parsing_top_level_lib")
 target_link_libraries ("${PROJECT_NAME}_lib" INTERFACE "${PROJECT_NAME}_split_lib")
-target_link_libraries ("${PROJECT_NAME}_lib" INTERFACE "${PROJECT_NAME}_split_write_lib")
 target_link_libraries ("${PROJECT_NAME}_lib" INTERFACE "${PROJECT_NAME}_build_lib")
 target_link_libraries ("${PROJECT_NAME}_lib" INTERFACE "${PROJECT_NAME}_search_lib")
 target_link_libraries ("${PROJECT_NAME}_lib" INTERFACE "${PROJECT_NAME}_consolidation_lib")

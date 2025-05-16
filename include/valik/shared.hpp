@@ -61,7 +61,7 @@ struct split_arguments
     std::vector<std::string> bin_path{};
     std::filesystem::path db_file{};
 
-    size_t pattern_size{150};
+    size_t pattern_size{50};
     uint32_t seg_count{64};
     uint32_t seg_count_in{std::numeric_limits<uint32_t>::max()};
     float error_rate{0.05};
@@ -76,7 +76,6 @@ struct split_arguments
     std::filesystem::path ref_meta_path{};
     bool write_out{false};
     bool split_query{false};
-    bool only_split{false};
 };
 
 struct build_arguments final : public split_arguments
@@ -86,7 +85,6 @@ struct build_arguments final : public split_arguments
     std::filesystem::path out_dir{"./"};
     float fpr{0.05};
     std::string size{};
-    uint64_t bins{64};
     uint64_t bits{4096};
     uint64_t hash{2};
     bool fast{false};

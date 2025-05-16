@@ -61,7 +61,7 @@ public:
         window_size_{arguments.window_size},
         shape_{arguments.shape},
         bin_path_{arguments.bin_path},
-        ibf_{seqan3::bin_count{arguments.bins},
+        ibf_{seqan3::bin_count{arguments.seg_count},
              seqan3::bin_size{arguments.bits},
              seqan3::hash_function_count{arguments.hash}}
     {

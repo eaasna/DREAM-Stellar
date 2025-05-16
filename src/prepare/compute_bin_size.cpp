@@ -84,7 +84,8 @@ void compute_minimiser(valik::build_arguments const & arguments)
 
                 {
                     std::ofstream headerfile{header_file};
-                    headerfile << arguments.shape.to_string() << '\t' << arguments.window_size << '\t' << count << '\t' << seq_size << '\n';
+                    headerfile << arguments.shape.to_string() << '\t' << std::to_string(arguments.window_size) << '\t' << 
+                                  count << '\t' << seq_size << '\n';
                 }
 
                 std::filesystem::remove(progress_file);

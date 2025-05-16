@@ -125,10 +125,10 @@ TEST(split_options, split_few_long)
     {
         for (uint32_t b : std::vector<uint32_t>{4, 12, 19})
         {
-            arguments.bins = b;
+            arguments.seg_count = b;
             valik::metadata meta(arguments);
 
-            if (arguments.bins > meta.seq_count) // one-to-many pairing of sequences and segments
+            if (arguments.seg_count > meta.seq_count) // one-to-many pairing of sequences and segments
             {
                 EXPECT_GE(0.2f, meta.segment_length_cv());  // create segments of roughly equal length
             }

@@ -120,6 +120,7 @@ void run_build(sharg::parser & parser)
     build_arguments arguments{};
     init_build_parser(parser, arguments);
     try_parsing(parser);
+    double information_content{0.35};
 
     if (parser.is_option_set("kmer"))
     {
@@ -182,7 +183,7 @@ void run_build(sharg::parser & parser)
     arguments.ref_meta_path = arguments.out_path;
     arguments.ref_meta_path.replace_extension("bin");
 
-    if (parser.is_option_set("seg-count") && !arguments.only_split)
+    if (parser.is_option_set("seg-count") && !arguments.manual_parameters)
     {
         std::cerr << "WARNING: seg count will be adjusted to the next multiple of 64. "
                   << "Set --without-parameter-tuning to force manual input.\n";
@@ -191,42 +192,87 @@ void run_build(sharg::parser & parser)
     // ==========================================
     // Dispatch split
     // ==========================================
-    auto meta = valik_split(arguments);
-    arguments.bins = meta.seg_count;
-
-    if (!arguments.manual_parameters)
+    if (arguments.manual_parameters)
     {
-        std::filesystem::path search_profile_file{arguments.ref_meta_path};
-        search_profile_file.replace_extension("arg");
-        sharg::input_file_validator argument_input_validator{{"arg"}};
-        argument_input_validator(search_profile_file);
-        search_kmer_profile search_profile{search_profile_file};
-
-        if (parser.is_option_set("kmer"))
-        {
-            seqan3::debug_stream << "WARNING: kmer size k=" << arguments.kmer_size << " will be updated to " << search_profile.kmer.size() 
-                                 << ". Set --without-parameter-tuning to force manual input.";
-        }
-        if (parser.is_option_set("window"))
-        {
-            seqan3::debug_stream << "WARNING: window size w=" << arguments.window_size << " will be updated. " 
-                                 << "Set --without-parameter-tuning to force manual input.";
-        }
-        
-        arguments.kmer_size = search_profile.kmer.size();
-        arguments.window_size = search_profile.kmer.size();
-        arguments.shape = search_profile.kmer.shape;
+        // use user parameter input
+        arguments.seg_count = arguments.seg_count_in;
     }
     else
     {
-        arguments.shape = seqan3::shape(seqan3::ungapped(arguments.kmer_size));
+        // bin count is multiple of 64
+        arguments.seg_count = adjust_bin_count(arguments.seg_count_in);
     }
-    arguments.shape_weight = arguments.shape.count();
 
+    metadata meta(arguments);
+    meta.save(arguments.ref_meta_path);
+
+    if (arguments.verbose)
+    {
+        std::cout << "\n-----------Preprocessing reference database-----------\n";
+        std::cout << "database size " << meta.total_len << "bp\n";
+        std::cout << "segment count " << meta.seg_count << '\n';
+        std::cout << "segment len " << std::to_string((uint64_t) std::round(meta.total_len / (double) meta.seg_count)) << "bp\n";
+    }
+
+
+    // ==========================================
+    // Parameter deduction
+    // ==========================================
+    auto space = param_space();
+    fn_confs fn_attr = fn_confs(space);
+
+    search_pattern pattern(arguments.errors, arguments.pattern_size);
+    if (arguments.verbose)
+    {
+        std::cout << "\n-----------Local match definition-----------\n";
+        std::cout << "min length " << arguments.pattern_size << "bp\n";
+        std::cout << "max error rate " << arguments.error_rate << '\n';
+    }
+        
+    if (arguments.kmer_size == std::numeric_limits<uint8_t>::max())
+    {
+        auto best_params = get_best_params(pattern, meta, fn_attr, information_content, arguments.verbose);
+        arguments.kmer_size = best_params.kmer.size();
+        arguments.shape = seqan3::shape{seqan3::ungapped(arguments.kmer_size)};
+        arguments.shape_str = std::string(arguments.kmer_size, '1');
+        arguments.shape_weight = arguments.kmer_size;
+    }
+    
+    if (!parser.is_option_set("window"))
+    {
+        if (arguments.fast)
+        {
+            arguments.window_size = arguments.kmer_size + 2;
+            arguments.input_is_minimiser = true;
+        }
+        else
+            arguments.window_size = arguments.kmer_size;
+    }
+
+    std::cout << "arguments.kmer_size\t" << std::to_string(arguments.kmer_size)  << '\n';
+    std::cout << "arguments.window_size\t" << std::to_string(arguments.window_size) << '\n';
+    
     if (arguments.kmer_size > arguments.window_size)
     {
-        throw sharg::parser_error{"The k-mer size cannot be bigger than the window size."};
+        throw sharg::parser_error{"The k-mer size" + std::to_string(arguments.kmer_size) + " cannot be bigger than the window size " + std::to_string(arguments.window_size) + "."};
     }
+
+    const kmer_loss & attr = fn_attr.get_kmer_loss(utilities::kmer{arguments.shape});
+
+    search_kmer_profile search_profile = find_thresholds_for_kmer_size(meta, attr, arguments.errors, information_content);
+    if (arguments.verbose)
+        search_profile.print();
+
+    std::filesystem::path search_profile_file{arguments.ref_meta_path};
+    search_profile_file.replace_extension("arg");
+    search_profile.save(search_profile_file);
+
+    if (arguments.write_out && !arguments.metagenome)
+    {
+        write_reference_segments(meta, arguments.db_file);
+    }
+
+    arguments.seg_count = meta.seg_count;
 
     try
     {
@@ -241,17 +287,6 @@ void run_build(sharg::parser & parser)
     // ==========================================
     // Process minimiser parameters for IBF size calculation.
     // ==========================================
-    if (!parser.is_option_set("window"))
-    {
-        if (arguments.fast)
-        {
-            arguments.window_size = arguments.kmer_size + 2;
-            arguments.input_is_minimiser = true;
-        }
-        else
-            arguments.window_size = arguments.kmer_size;
-    }
-
     if (arguments.fast)
         raptor::compute_minimiser(arguments);   // requires bin_path and out_dir
     
@@ -285,7 +320,7 @@ void run_build(sharg::parser & parser)
         size_t size{};
         std::from_chars(arguments.size.data(), arguments.size.data() + arguments.size.size() - 1, size);
         size *= multiplier;
-        arguments.bits = size / (((arguments.bins + 63) >> 6) << 6);
+        arguments.bits = size / (((arguments.seg_count + 63) >> 6) << 6);
     }
     else 
     {

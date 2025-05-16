@@ -19,7 +19,7 @@ inline auto parse_bin_paths(build_arguments const & arguments, std::string const
     }
     else
     {
-        for (size_t bin{0}; bin < arguments.bins; bin++)
+        for (size_t bin{0}; bin < arguments.seg_count; bin++)
         {
             std::filesystem::path const ref_file{arguments.bin_path[0]};
             std::filesystem::path file = arguments.out_dir;

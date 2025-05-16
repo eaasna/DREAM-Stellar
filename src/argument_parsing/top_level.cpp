@@ -6,10 +6,9 @@ namespace valik::app
 void init_top_level_parser(sharg::parser & parser)
 {
     init_shared_meta(parser);
-    parser.info.description.emplace_back("Binning Directories are a datastruture that can be used in various ways. "
-                                         "What's a bin, how can it be used, etc.");
+    parser.info.description.emplace_back("Find local alignments between sets of DNA sequences.");
 
-    parser.info.examples = {"./valik split --help", "./valik build --help", "./valik search --help", "./valik consolidate --help"};
+    parser.info.examples = {"./valik build --help", "./valik search --help"};
 }
 
 } // namespace valik::app

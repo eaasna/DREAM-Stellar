@@ -15,6 +15,7 @@ void init_search_parser(sharg::parser & parser, search_arguments & arguments)
                       sharg::config{.short_id = '\0',
                       .long_id = "index",
                       .description = "Provide a valid path to an IBF.",
+                      .required = true,
                       .validator = sharg::input_file_validator{}});
     parser.add_option(arguments.query_file,
                       sharg::config{.short_id = '\0',
@@ -211,6 +212,7 @@ void run_search(sharg::parser & parser)
 
     arguments.ref_meta_path = arguments.index_file;
     arguments.ref_meta_path.replace_extension("bin");
+    sharg::input_file_validator{}(arguments.ref_meta_path);
 
     // ==========================================
     // Process --seg-count.
@@ -270,21 +272,8 @@ void run_search(sharg::parser & parser)
     // ==========================================
     if (parser.is_option_set("pattern"))
     {
-        if (!arguments.manual_parameters)
-        {
-            std::cerr << "WARNING: pattern size (minimum match length) will be adjusted to match database metadata. "
-                      << "Set --without-parameter-tuning to force manual input.\n"; 
-        }
-        else
-        {
-            if (arguments.pattern_size < arguments.window_size)
-                throw sharg::validation_error{"The minimiser window cannot be bigger than the pattern."};
-        }
-    }
-    else
-    {
-        if (arguments.manual_parameters)
-            throw sharg::validation_error{"Input --pattern size or deduce parameter by providing --ref-meta."};
+        if (arguments.pattern_size < arguments.window_size)
+            throw sharg::validation_error{"The minimiser window cannot be bigger than the pattern."};
     }
 
     arguments.errors = std::ceil(arguments.error_rate * arguments.pattern_size);
@@ -316,7 +305,15 @@ void run_search(sharg::parser & parser)
         argument_input_validator(search_profile_file);
         search_kmer_profile search_profile{search_profile_file};
 
-        arguments.pattern_size = search_profile.l;
+        //!TODO: rewrite arg file to update the min length
+        if (!parser.is_option_set("pattern"))
+        {
+            if (arguments.pattern_size != search_profile.l)
+                std::cerr << "[Warning] The pattern size in the metadata file is different from the one provided on the command line. Using " + 
+                             std::to_string(search_profile.l) + " from metadata\n"; 
+            arguments.pattern_size = search_profile.l;
+        }
+
         arguments.errors = std::ceil(arguments.error_rate * arguments.pattern_size);    // update based on pattern size in metadata
         search_error_profile error_profile = search_profile.get_error_profile(arguments.errors);
         // seg_count is inferred in metadata constructor

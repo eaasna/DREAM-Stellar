@@ -27,6 +27,8 @@ do
         out_dir=write_out_${pattern}_${bins}
         mkdir -p ${out_dir}
 
-        valik split database.fasta --pattern ${pattern} --seg-count ${bins} --out ${out_dir}/reference_metadata.bin
+        echo "Running Valik with pattern ${pattern} and bins ${bins}"
+        valik build database.fasta --pattern ${pattern} --seg-count ${bins} --output ${out_dir}/reference_metadata.index \
+            --without-parameter-tuning
     done
 done
