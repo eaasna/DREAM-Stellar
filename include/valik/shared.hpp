@@ -27,15 +27,15 @@ constexpr static uint64_t adjust_seed(uint8_t const kmer_size, uint64_t const se
  *
  * @param n Segment count.
  */
-constexpr static size_t adjust_bin_count(size_t const & n)
+constexpr static size_t adjust_bin_count(size_t n)
 {
     if (n == std::numeric_limits<uint32_t>::max())
         return 64u;
-    int remainder = n % 64;
+    auto remainder = n % 64;
     if (remainder == 0)
         return n;
-    else if (remainder < 32)
-        return std::max((uint32_t) n - remainder, 128u) - 64;  // previous multiple of 64
+    else if (remainder <= 32)
+        return std::max((uint32_t) n - remainder, 64UL);  // previous multiple of 64
     else
         return n + 64 - remainder;  // next multiple of 64
 }

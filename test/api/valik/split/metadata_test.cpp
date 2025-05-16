@@ -62,17 +62,14 @@ TEST(split_options, split_ref)
 
     try
     {
-        for (auto b : std::vector<uint32_t>{8, 63, 64, 65, 96, 97, 159})
+        for (uint32_t b : std::vector<uint32_t>{8, 63, 64, 65, 96, 97, 159})
         {
-            arguments.bins = b;
+            arguments.seg_count = valik::adjust_bin_count(b);
             for (auto p : std::vector<uint8_t>{20, 21})
             {
                 arguments.pattern_size = p;
                 valik::metadata meta(arguments);
-                if (b < 97UL)
-                    EXPECT_EQ(meta.seg_count, 64UL);
-                else
-                    EXPECT_EQ(meta.seg_count, 128UL);
+                EXPECT_TRUE(std::abs((int64_t)b - (int64_t)meta.seg_count) <= 63);
                 EXPECT_GE(0.1f, meta.segment_length_cv()); // create segments of roughly equal length
             }
         }
@@ -98,14 +95,15 @@ TEST(split_options, split_various_length)
 
     try
     {
-        for (arguments.bins : std::vector<uint32_t>{4, 16})
+        for (uint32_t b : std::vector<uint32_t>{4, 16})
         {
-            valik::metadata meta(arguments);
-            auto expected_segments = valik::metadata(segment_metadata_path(arguments.pattern_size, arguments.bins));
+            arguments.seg_count = b;
+            auto expected_segments = valik::metadata(segment_metadata_path(arguments.pattern_size, arguments.seg_count));
             std::string expected_segment_str = expected_segments.to_string();
-            auto actual_segments = valik::metadata("various_chromosome_lengths.bin");
-            std::string actual_segment_str = actual_segments.to_string();
-            EXPECT_TRUE(expected_segment_str == actual_segment_str);            
+            
+            valik::metadata meta(arguments);
+            auto actual_segment_str = meta.to_string();
+            EXPECT_EQ(expected_segment_str, actual_segment_str);            
         }
     }
     catch( const std::runtime_error& e )
@@ -125,11 +123,12 @@ TEST(split_options, split_few_long)
 
     try
     {
-        for (arguments.bins : std::vector<uint32_t>{4, 12, 19})
+        for (uint32_t b : std::vector<uint32_t>{4, 12, 19})
         {
+            arguments.bins = b;
             valik::metadata meta(arguments);
 
-            if (seg_count > meta.seq_count) // one-to-many pairing of sequences and segments
+            if (arguments.bins > meta.seq_count) // one-to-many pairing of sequences and segments
             {
                 EXPECT_GE(0.2f, meta.segment_length_cv());  // create segments of roughly equal length
             }
