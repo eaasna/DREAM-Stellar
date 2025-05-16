@@ -12,7 +12,7 @@ void valik_build(build_arguments const & arguments)
         std::cout << "\n-----------Index parameters-----------\n";
         std::cout << "kmer size " << std::to_string(arguments.kmer_size) << '\n';
         std::cout << "window size " << std::to_string(arguments.window_size) << '\n';
-        std::cout << "bins " << std::to_string(arguments.bins) << '\n';
+        std::cout << "bins " << std::to_string(arguments.seg_count) << '\n';
         std::cout << "bits " << std::to_string(arguments.bits) << '\n';        
         std::cout << "FPR " << std::to_string(arguments.fpr) << '\n'; 
     }

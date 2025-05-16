@@ -39,22 +39,17 @@ ref_input="single_reference.fasta"
 query="single_query.fasta"
 for b in 4 16
 do
-    echo "Splitting the genome into $b segments that overlap by $seg_overlap"
-    seg_meta="single/"$seg_overlap"overlap"$b"bins.bin"
-
-    valik split "$ref_input" --pattern "$seg_overlap" --seg-count "$b" --out "$seg_meta" --without-parameter-tuning
-
     for w in 13 15
     do
         echo "Creating IBF for w=$w and k=$k where segments overlap by $seg_overlap"
         index="single/"$seg_overlap"overlap"$b"bins"$w"window.ibf"
-        valik build --kmer "$k" --window "$w" --size "$ibf_size" --output "$index" --ref-meta "$seg_meta" --without-parameter-tuning
+        valik build "$ref_input" --pattern "$seg_overlap" --seg-count "$b" --kmer "$k" --window "$w" --size "$ibf_size" --output "$index" --ref-meta "$seg_meta" --without-parameter-tuning
 
         echo "Searching IBF with $errors errors"
         search_out="single/"$seg_overlap"overlap"$b"bins"$w"window"$errors"errors.gff"
         error_rate=$(echo $errors/$pattern| bc -l )
         valik search --distribute --index "$index" --query "$query" --output "$search_out" --error-rate "$error_rate" \
-                     --pattern "$pattern" --query-every 1 --ref-meta "$seg_meta" --threads 1 \
+                     --pattern "$pattern" --query-every 1 --ref-meta "$seg_meta" --threads 1 --very-verbose \
                      --without-parameter-tuning --cart-max-capacity 3 --max-queued-carts 10
     rm "$search_out"    # only look at .gff.out
     done

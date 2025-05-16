@@ -30,8 +30,9 @@ private:
 
     uint64_t window_size_{};
     seqan3::shape shape_{};
-    std::vector<std::vector<std::string>> bin_path_{};
+    std::vector<std::string> bin_path_{};
     std::vector<size_t> entropy_ranking_{};
+    double information_content_{};
     data_t ibf_{};
 
 public:
@@ -60,7 +61,7 @@ public:
         window_size_{arguments.window_size},
         shape_{arguments.shape},
         bin_path_{arguments.bin_path},
-        ibf_{seqan3::bin_count{arguments.bins},
+        ibf_{seqan3::bin_count{arguments.seg_count},
              seqan3::bin_size{arguments.bits},
              seqan3::hash_function_count{arguments.hash}}
     {
@@ -77,7 +78,7 @@ public:
         return shape_;
     }
 
-    std::vector<std::vector<std::string>> const & bin_path() const
+    std::vector<std::string> const & bin_path() const
     {
         return bin_path_;
     }
@@ -90,6 +91,11 @@ public:
     std::vector<size_t> const & entropy_ranking() const
     {
         return entropy_ranking_;
+    }
+
+    double information_content() const
+    {
+        return information_content_;
     }
 
     data_t & ibf()
@@ -122,6 +128,7 @@ public:
                 archive(shape_);
                 archive(bin_path_);
                 archive(entropy_ranking_);
+                archive(information_content_);
                 archive(ibf_);
             }
             catch (std::exception const & e)
