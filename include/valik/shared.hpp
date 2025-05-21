@@ -91,8 +91,8 @@ struct build_arguments final : public split_arguments
     bool manual_parameters{false};
     bool input_is_minimiser{false};
 
-    uint8_t kmer_count_min_cutoff{2};
-    uint8_t kmer_count_max_cutoff{64};
+    uint8_t kmer_count_min_cutoff{0};
+    uint8_t kmer_count_max_cutoff{254};
     bool use_filesize_dependent_cutoff{false};
 
     std::filesystem::path ref_meta_path{};
