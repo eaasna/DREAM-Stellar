@@ -143,6 +143,12 @@ struct metadata
             seq_vec = std::move(ind_vec);
         }
 
+        void add_sequence(sequence_stats const & seq)
+        {
+            seq_vec.push_back(seq.ind);
+            len += seq.len;
+        }
+
         std::string unique_id()
         {
             std::string str_id{};
@@ -262,15 +268,34 @@ struct metadata
          * @param overlap Length of overlap between adjacent segments.
          * @param seq_it Iterator to first sequence of sufficient length.
          */
-        template <typename it_t>
-        void make_exactly_n_segments(size_t const & n, size_t const & overlap, it_t & seq_it)
+        void make_exactly_n_segments(uint32_t const & n, size_t const & overlap)
         {
-            size_t remaining_db_len = total_len;
-            for (auto it = seq_it; it != sequences.end(); it++)
+            uint64_t remaining_db_len = total_len;
+            size_t len_lower_bound = default_seg_len / 10;
+            auto first_long_seq = std::find_if(sequences.begin(), sequences.end(), [&](auto const & seq){return (seq.len > len_lower_bound);});
+            
+            segment_stats short_sequences{};
+            short_sequences.start = 0;
+            short_sequences.id = segments.size();
+
+            uint64_t short_len{0};
+            for (auto it = sequences.begin(); it < sequences.end(); it++)
             {
                 auto seq = *it;
                 size_t start = 0;
-                if (seq.len <= default_seg_len * 1.5)
+                if (seq.len < len_lower_bound)
+                {
+                    short_len += seq.len;
+                    short_sequences.add_sequence(seq);
+                    if ((short_len >= default_seg_len) || 
+                        ((it + 1) == first_long_seq))
+                    {
+                        segments.push_back(short_sequences);
+                        short_sequences.seq_vec.clear();
+                        short_len = 0;
+                    }
+                }
+                else if (seq.len <= default_seg_len * 1.5)
                 {
                     // database sequence is single segment
                     add_segment(seq.ind, start, seq.len);
@@ -316,10 +341,9 @@ struct metadata
          * @param overlap Length of overlap between adjacent segments.
          * @param seq_it Iterator to first sequence of sufficient length.
          */
-        template <typename it_t>
-        void make_equal_length_segments(size_t const & overlap, it_t & seq_it)
+        void make_equal_length_segments(size_t const & overlap)
         {
-            for (auto it = seq_it; it != sequences.end(); it++)
+            for (auto it = sequences.begin(); it != sequences.end(); it++)
             {
                 auto seq = *it;
                 size_t start = 0;
@@ -368,28 +392,16 @@ struct metadata
                                          std::to_string(arguments.pattern_size) + "bp.\nDecrease the overlap or the number of segments.");
             }
 
-            size_t len_lower_bound = default_seg_len / 10;
-            // Check how many sequences are discarded for being too short
-            //!TODO: gather short sequences
-            auto first_long_seq = std::find_if(sequences.begin(), sequences.end(), [&](auto const & seq){return (seq.len > len_lower_bound);});
-            size_t discarded_short_sequences = first_long_seq - sequences.begin();
-
-            for (auto it = sequences.begin(); it < first_long_seq; it++)
-            {
-                seqan3::debug_stream << "Sequence: " << (*it).id << " is too short and will be skipped.\n";
-                total_len -= (*it).len;
-            }
-
-            if (arguments.seg_count < (sequences.size() - discarded_short_sequences))
+            if (arguments.seg_count < sequences.size())
             {
                 throw std::runtime_error("Can not split " + std::to_string(sequences.size()) +
                                          " sequences into " + std::to_string(arguments.seg_count) + " segments.");
             }
 
             if constexpr (std::is_same<arg_t, build_arguments>::value)
-                make_exactly_n_segments(arguments.seg_count, arguments.pattern_size, first_long_seq);
+                make_exactly_n_segments(arguments.seg_count, arguments.pattern_size);
             else
-                make_equal_length_segments(arguments.pattern_size, first_long_seq);
+                make_equal_length_segments(arguments.pattern_size);
 
             std::stable_sort(sequences.begin(), sequences.end(), fasta_order());
             std::stable_sort(segments.begin(), segments.end(), fasta_order());
@@ -410,8 +422,7 @@ struct metadata
                                          std::to_string(arguments.pattern_size) + "bp.\nDecrease the overlap or the number of segments.");
             }
 
-            auto seq_begin = sequences.begin();
-            make_equal_length_segments(arguments.pattern_size, seq_begin);
+            make_equal_length_segments(arguments.pattern_size);
             seg_count = segments.size();
 
             std::stable_sort(sequences.begin(), sequences.end(), fasta_order());
