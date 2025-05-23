@@ -179,8 +179,6 @@ struct metadata
 
         inline bool operator() (segment_stats const & left, segment_stats const & right)
         {
-            if (left.seq_vec.size() > 1 || right.seq_vec.size() > 1)
-                throw std::runtime_error("Can't order sets of sets of sequences.");
             return (left.seq_vec[0] < right.seq_vec[0]);
         }
     };
@@ -292,6 +290,7 @@ struct metadata
                     {
                         segments.push_back(short_sequences);
                         short_sequences.seq_vec.clear();
+                        remaining_db_len -= short_len;
                         short_len = 0;
                     }
                 }
@@ -570,7 +569,7 @@ struct metadata
                 segment_stats seg = segments[seg_id];
                 out_str << seg_id << '\t';
                 for (size_t ind : seg.seq_vec) 
-                    out_str << ind << '\t';
+                    out_str << ind << ';';
                 out_str << seg.start << '\t' << seg.len << '\n';
             }
 
