@@ -43,7 +43,7 @@ CPMDeclarePackage (sharg
 )
 
 # googletest
-set (DREAM_STELLAR_GOOGLETEST_VERSION 1.17.0 CACHE STRING "")
+set (DREAM_STELLAR_GOOGLETEST_VERSION 1.18.0 CACHE STRING "")
 CPMDeclarePackage (googletest
                    NAME GTest
                    VERSION ${DREAM_STELLAR_GOOGLETEST_VERSION}
