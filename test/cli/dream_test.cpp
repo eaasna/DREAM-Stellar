@@ -12,6 +12,8 @@ struct dream_short_search : public app_test_cli_base, public testing::WithParamI
 {};
 struct dream_split_search : public app_test_cli_base, public testing::WithParamInterface<std::tuple<size_t>>
 {};
+struct dream_adaptive_search : public app_test_cli_base, public testing::WithParamInterface<std::tuple<double, double>>
+{};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////// DREAM short shared memory ///////////////////////////////////////////////
@@ -205,5 +207,111 @@ INSTANTIATE_TEST_SUITE_P(split_shared_memory_gapped_dream_suite,
                          [] (testing::TestParamInfo<dream_split_search::ParamType> const & info)
                          {
                              std::string name = std::to_string(std::get<0>(info.param)) + "_error";
+                             return name;
+                         });
+
+TEST_P(dream_adaptive_search, adapt_threshold_kmer)
+{
+    auto const [adaptive_cutoff, entropy_cutoff] = GetParam();
+    size_t pattern_size = 50;
+    float max_error_rate = 0.04;
+
+    setup_tmp_dir();
+    setenv("VALIK_MERGE", "cat", true);
+
+    std::filesystem::path ref_meta_path = "ref.bin";
+    std::filesystem::path index_path = "ref.ibf";
+
+    app_test_result const build = execute_app("dream-stellar", "build",
+                                                       data("repetitive_reference.fasta"),
+                                                       "--output ", index_path,
+                                                       "--seg-count 64",
+                                                       "--fpr 0.001",
+                                                       "--shape 1111110110110111111",
+                                                       "--pattern ", std::to_string(pattern_size), 
+                                                       "--error-rate ", std::to_string(max_error_rate));
+
+    EXPECT_EQ(build.exit_code, 0);
+    valik::metadata reference(ref_meta_path);
+
+    app_test_result const search = execute_app("dream-stellar", "search",
+                                                        "--output search.gff",
+                                                        "--error-rate ", std::to_string(max_error_rate),
+                                                        "--index ", index_path,
+                                                        "--query ", data("repetitive_query.fasta"),
+                                                        "--repeatPeriod 1",
+                                                        "--repeatLength 1000", 
+                                                        "--numMatches 100",
+                                                        "--bin-cutoff", std::to_string(adaptive_cutoff),
+                                                        "--bin-entropy-cutoff", std::to_string(entropy_cutoff));
+
+    EXPECT_EQ(search.exit_code, 0);
+    EXPECT_EQ(search.out, std::string{"Launching stellar search on a shared memory machine...\nLoaded 1 database sequence.\n"});
+    EXPECT_EQ(search.err, std::string{});
+
+    /*
+    auto distributed = valik::read_alignment_output<valik::stellar_match>(search_result_path(number_of_errors), reference, std::ios::binary);
+    auto local = valik::read_alignment_output<valik::stellar_match>("search.gff", reference);
+    
+    compare_gff_out(distributed, local);
+    */
+}
+
+
+TEST_P(dream_adaptive_search, adapt_threshold_minimiser)
+{
+    auto const [adaptive_cutoff, entropy_cutoff] = GetParam();
+    size_t pattern_size = 50;
+    float max_error_rate = 0.04;
+
+    setup_tmp_dir();
+    setenv("VALIK_MERGE", "cat", true);
+
+    std::filesystem::path ref_meta_path = "ref.bin";
+    std::filesystem::path index_path = "ref.ibf";
+
+    app_test_result const build = execute_app("dream-stellar", "build",
+                                                       data("repetitive_reference.fasta"),
+                                                       "--output ", index_path,
+                                                       "--seg-count 64",
+                                                       "--fpr 0.001",
+                                                       "--fast",
+                                                       "--shape 1111110110110111111",
+                                                       "--pattern ", std::to_string(pattern_size), 
+                                                       "--error-rate ", std::to_string(max_error_rate));
+
+    EXPECT_EQ(build.exit_code, 0);
+    valik::metadata reference(ref_meta_path);
+
+    app_test_result const search = execute_app("dream-stellar", "search",
+                                                        "--output search.gff",
+                                                        "--error-rate ", std::to_string(max_error_rate),
+                                                        "--index ", index_path,
+                                                        "--query ", data("repetitive_query.fasta"),
+                                                        "--repeatPeriod 1",
+                                                        "--repeatLength 1000", 
+                                                        "--numMatches 100",
+                                                        "--bin-cutoff", std::to_string(adaptive_cutoff),
+                                                        "--bin-entropy-cutoff", std::to_string(entropy_cutoff));
+
+    EXPECT_EQ(search.exit_code, 0);
+    EXPECT_EQ(search.out, std::string{"Launching stellar search on a shared memory machine...\nLoaded 1 database sequence.\n"});
+    EXPECT_EQ(search.err, std::string{});
+
+    /*
+    auto distributed = valik::read_alignment_output<valik::stellar_match>(search_result_path(number_of_errors), reference, std::ios::binary);
+    auto local = valik::read_alignment_output<valik::stellar_match>("search.gff", reference);
+    
+    compare_gff_out(distributed, local);
+    */
+}
+
+INSTANTIATE_TEST_SUITE_P(shared_memory_adaptive_dream_suite,
+                         dream_adaptive_search,
+                         testing::Combine(testing::Values(0.1, 1.0), testing::Values(0.1, 1.0)),
+                         [] (testing::TestParamInfo<dream_adaptive_search::ParamType> const & info)
+                         {
+                             std::string name = std::to_string((size_t) std::round(std::get<0>(info.param)*100)) + "_adaptive_" + 
+                                                std::to_string((size_t) std::round(std::get<1>(info.param)*100)) + "_entropy";
                              return name;
                          });

@@ -49,19 +49,23 @@ inline void prefilter_queries_parallel(index_t const & index,
                                                                     std::unordered_set<size_t> const & bin_hits)
         {
             auto & ibf = index.ibf();
-            auto max_bin_hits = std::max((size_t) 1, (size_t) std::round(ibf.bin_count() * arguments.best_bin_entropy_cutoff));
+            auto max_bin_hits = std::max((size_t) 1, (size_t) std::round(ibf.bin_count() * 0.1));
+            if ((bin_hits.size() > max_bin_hits) && arguments.verbose)
+    	    {
+                verbose_out.write_warning(record, bin_hits.size());
+	        }
 
+            max_bin_hits = std::max((size_t) 1, (size_t) std::round(ibf.bin_count() * arguments.best_bin_entropy_cutoff));
             if (bin_hits.size() > max_bin_hits)
             {
-                if (arguments.verbose)
-                    verbose_out.write_warning(record, bin_hits.size());
+                auto const & entropy_ranking = index.entropy_ranking();
                 if (arguments.best_bin_entropy_cutoff == 0)
                 {
                     return;
                 }
-                else if (arguments.best_bin_entropy_cutoff < 1.0)    // keep hits for bins with the highest entropy
+                else if ((entropy_ranking.size() > 0) &&    // only count minimisers not k-mers -> entropy unknown if k-mer index
+                         (arguments.best_bin_entropy_cutoff < 1.0))    // keep hits for bins with the highest entropy
                 {
-                    auto const & entropy_ranking = index.entropy_ranking();
                     size_t inserted_bins{0};
                     size_t i{0};
                     while (inserted_bins < max_bin_hits)
@@ -74,9 +78,8 @@ inline void prefilter_queries_parallel(index_t const & index,
                         }
                         i++;
                     }
+                    return;
                 }
-
-                return;
             }
             
             for (auto const bin : bin_hits)
